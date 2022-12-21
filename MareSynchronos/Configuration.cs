@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using MareSynchronos.Models.DTO;
 using MareSynchronos.Utils;
 using MareSynchronos.WebAPI;
 
@@ -87,6 +88,8 @@ public class Configuration : IPluginConfiguration
 
     public bool ShowTransferWindow { get; set; } = true;
     public bool OpenPopupOnAdd { get; set; } = false;
+
+    public List<PairCategoryDto> PairCategories { get; set; } = new();
 
     // the below exist just to make saving less cumbersome
     public void Initialize(DalamudPluginInterface pluginInterface)

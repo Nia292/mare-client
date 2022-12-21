@@ -13,6 +13,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Utility;
 using ImGuiNET;
 using MareSynchronos.API;
+using MareSynchronos.Models.DTO;
 using MareSynchronos.UI.Component;
 using MareSynchronos.Utils;
 using MareSynchronos.WebAPI;
@@ -45,9 +46,8 @@ public class CompactUi : Window, IDisposable
     private ClientPairDto? _lastAddedUser;
     private string _lastAddedUserComment = string.Empty;
 
-    private readonly HashSet<string> _openFolders = new(StringComparer.Ordinal);
     private readonly AddCategoryUi _componentAddCategory;
-    private readonly List<string> _categories = new();
+    private readonly List<PairCategoryUi> _componentsPairCategory;
 
     public CompactUi(WindowSystem windowSystem,
         UiShared uiShared, Configuration configuration, ApiController apiController) : base("###MareSynchronosMainUI")
@@ -87,7 +87,9 @@ public class CompactUi : Window, IDisposable
 
         _componentAddCategory = new AddCategoryUi()
             .OnAddCategory(HandleAddCategory);
-
+        _componentsPairCategory = _configuration.PairCategories
+            .Select(BuildCategoryFor)
+            .ToList();
         windowSystem.AddWindow(this);
     }
 
@@ -451,31 +453,7 @@ public class CompactUi : Window, IDisposable
 
     private void DrawCategories()
     {
-        // var clientPairDtos = GetFilteredUsers().ToList();
-        // new PairCategoryUi("All Pairs", _openFolders.Contains("Test Folder A"), open => SetFolderOpen("Test Folder A", open), clientPairDtos, DrawPairedClient).Draw();
-        // new PairCategoryUi("Test Category", _openFolders.Contains("Test Folder A"), open => SetFolderOpen("Test Folder B", open), new List<ClientPairDto>(), DrawPairedClient).Draw();
-        _categories
-            .Select(categoryName => new PairCategoryUi(categoryName,
-                    _openFolders.Contains(categoryName),
-                    open => SetFolderOpen(categoryName, open),
-                    new List<ClientPairDto>(),
-                    DrawPairedClient
-                )
-            )
-            .ToList()
-            .ForEach(component => component.Draw());
-    }
-
-    private void SetFolderOpen(String folderName, bool open)
-    {
-        if (open)
-        {
-            _openFolders.Add(folderName);
-        }
-        else
-        {
-            _openFolders.Remove(folderName);
-        }
+        _componentsPairCategory.ForEach(component => component.Draw());
     }
 
     private void DrawPairs()
@@ -675,10 +653,49 @@ public class CompactUi : Window, IDisposable
     /// <param name="newCategoryName">name of the new category.</param>
     private void HandleAddCategory(string newCategoryName)
     {
-        Logger.Info("[Nia] Adding new category " + newCategoryName);
-        _categories.Add(newCategoryName);
+        Logger.Info("Adding category with name " + newCategoryName);
+        var categoryToAdd = new PairCategoryDto(newCategoryName);
+        _configuration.PairCategories.Add(categoryToAdd);
+        _configuration.Save();
+        _componentsPairCategory.Add(BuildCategoryFor(categoryToAdd));
     }
 
+    private void HandleDeleteCategory(string categoryUid)
+    {
+        Logger.Info("Removing category " + categoryUid);
+        _configuration.PairCategories.RemoveAll(category => string.Equals(category.CategoryID, categoryUid, StringComparison.Ordinal));
+        _configuration.Save();
+        _componentsPairCategory.RemoveAll(categoryComponent => string.Equals(categoryComponent.CategoryId, categoryUid, StringComparison.Ordinal));
+    }
+    
+    private void HandleRenameCategory(string categoryUid, string newCategoryName)
+    {
+        Logger.Info($"Renaming category {categoryUid} to {newCategoryName}");
+        _configuration.PairCategories.ForEach(category =>
+        {
+            if (string.Equals(category.CategoryID, categoryUid, StringComparison.Ordinal))
+            {
+                category.CategoryName = newCategoryName;
+            }
+        });
+        _configuration.Save();
+    }
+
+
+    /// <summary>
+    /// Turns the category DTO into a drawable category component
+    /// </summary>
+    /// <param name="category">to turn into a component</param>
+    /// <returns>the drawable component</returns>
+    private PairCategoryUi BuildCategoryFor(PairCategoryDto category)
+    {
+        return new PairCategoryUi(category,
+            () => HandleDeleteCategory(category.CategoryID),
+            (newCategoryName) => HandleRenameCategory(category.CategoryID, newCategoryName),
+            new List<ClientPairDto>(),
+            DrawPairedClient
+        );
+    }
 
     private string GetServerError()
     {
