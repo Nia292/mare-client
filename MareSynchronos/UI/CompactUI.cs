@@ -13,6 +13,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Utility;
 using ImGuiNET;
 using MareSynchronos.API;
+using MareSynchronos.UI.Component;
 using MareSynchronos.Utils;
 using MareSynchronos.WebAPI;
 
@@ -43,6 +44,10 @@ public class CompactUi : Window, IDisposable
     private GroupPanel groupPanel;
     private ClientPairDto? _lastAddedUser;
     private string _lastAddedUserComment = string.Empty;
+
+    private readonly HashSet<string> _openFolders = new(StringComparer.Ordinal);
+    private readonly AddCategoryUi _componentAddCategory;
+    private readonly List<string> _categories = new();
 
     public CompactUi(WindowSystem windowSystem,
         UiShared uiShared, Configuration configuration, ApiController apiController) : base("###MareSynchronosMainUI")
@@ -79,6 +84,9 @@ public class CompactUi : Window, IDisposable
             MinimumSize = new Vector2(350, 400),
             MaximumSize = new Vector2(350, 2000),
         };
+
+        _componentAddCategory = new AddCategoryUi()
+            .OnAddCategory(HandleAddCategory);
 
         windowSystem.AddWindow(this);
     }
@@ -429,9 +437,45 @@ public class CompactUi : Window, IDisposable
     private void DrawPairList()
     {
         UiShared.DrawWithID("addpair", DrawAddPair);
+        UiShared.DrawWithID("addcategory", DrawAddCategory);
+        UiShared.DrawWithID("pairGroups", DrawCategories);
         UiShared.DrawWithID("pairs", DrawPairs);
         TransferPartHeight = ImGui.GetCursorPosY();
         UiShared.DrawWithID("filter", DrawFilter);
+    }
+
+    private void DrawAddCategory()
+    {
+        _componentAddCategory.Draw();
+    }
+
+    private void DrawCategories()
+    {
+        // var clientPairDtos = GetFilteredUsers().ToList();
+        // new PairCategoryUi("All Pairs", _openFolders.Contains("Test Folder A"), open => SetFolderOpen("Test Folder A", open), clientPairDtos, DrawPairedClient).Draw();
+        // new PairCategoryUi("Test Category", _openFolders.Contains("Test Folder A"), open => SetFolderOpen("Test Folder B", open), new List<ClientPairDto>(), DrawPairedClient).Draw();
+        _categories
+            .Select(categoryName => new PairCategoryUi(categoryName,
+                    _openFolders.Contains(categoryName),
+                    open => SetFolderOpen(categoryName, open),
+                    new List<ClientPairDto>(),
+                    DrawPairedClient
+                )
+            )
+            .ToList()
+            .ForEach(component => component.Draw());
+    }
+
+    private void SetFolderOpen(String folderName, bool open)
+    {
+        if (open)
+        {
+            _openFolders.Add(folderName);
+        }
+        else
+        {
+            _openFolders.Remove(folderName);
+        }
     }
 
     private void DrawPairs()
@@ -623,6 +667,16 @@ public class CompactUi : Window, IDisposable
         {
             UiShared.ColorTextWrapped(GetServerError(), GetUidColor());
         }
+    }
+    
+    /// <summary>
+    /// Called when a new sync pair category is supposed to be created 
+    /// </summary>
+    /// <param name="newCategoryName">name of the new category.</param>
+    private void HandleAddCategory(string newCategoryName)
+    {
+        Logger.Info("[Nia] Adding new category " + newCategoryName);
+        _categories.Add(newCategoryName);
     }
 
 

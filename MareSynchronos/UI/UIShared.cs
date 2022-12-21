@@ -251,6 +251,20 @@ public class UiShared : IDisposable
         ImGui.PopStyleColor();
     }
 
+    public static void FontTextUnformatted(string text, ImFontPtr font)
+    {
+        ImGui.PushFont(font);
+        ImGui.TextUnformatted(text);
+        ImGui.PopFont();
+    }
+    
+    public static void FontText(Action textAction, ImFontPtr font)
+    {
+        ImGui.PushFont(font);
+        textAction();
+        ImGui.PopFont();
+    }
+
     public static void ColorTextWrapped(string text, Vector4 color)
     {
         ImGui.PushStyleColor(ImGuiCol.Text, color);
