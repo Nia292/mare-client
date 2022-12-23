@@ -14,6 +14,8 @@ namespace MareSynchronos.Models
         /// </summary>
         public string CategoryName { get; set; }
         
+        public bool Open { get; set; }
+        
         /// <summary>
         /// The pair partner UIDs that are to be rendered in this category.
         /// </summary>

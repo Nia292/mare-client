@@ -24,8 +24,11 @@ namespace MareSynchronos.UI.Component
         /// </summary>
         private readonly Dictionary<string, string> _categoryEditNameForCategoryId = new(System.StringComparer.Ordinal);
 
+        /// <summary>
+        /// When we right-click a category, we toggle it into edit mode.
+        /// This keeps track of all the active edit modes.
+        /// </summary>
         private readonly Dictionary<string, bool> _categoryEditingForCategoryId = new(System.StringComparer.Ordinal);
-        private readonly Dictionary<string, bool> _categoryOpenForCategoryId = new(System.StringComparer.Ordinal);
 
         private bool _showPairSelectionPopup = false;
         private bool _pairSelectionPopupOpened = false;
@@ -58,7 +61,7 @@ namespace MareSynchronos.UI.Component
             }
 
             DrawButtons(pairCategory);
-            if (IsCategoryOpen(pairCategory.CategoryId))
+            if (pairCategory.Open)
             {
                 DrawPairs(pairCategory);
             }
@@ -102,7 +105,7 @@ namespace MareSynchronos.UI.Component
             UiShared.FontTextUnformatted(resultFolderName, UiBuilder.DefaultFont);
             if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
             {
-                ToggleCategoryOpen(pairCategory.CategoryId);
+                ToggleCategoryOpen(pairCategory);
             }
 
             UiShared.AttachToolTip("Right click to edit name. Left-click to open.");
@@ -214,16 +217,6 @@ namespace MareSynchronos.UI.Component
             }
         }
         
-        private bool IsCategoryOpen(string categoryId)
-        {
-            return _categoryOpenForCategoryId.GetValueOrDefault(categoryId, false);
-        }
-
-        private void ToggleCategoryOpen(string categoryId)
-        {
-            bool newValue = !IsCategoryOpen(categoryId);
-            _categoryOpenForCategoryId[categoryId] = newValue;
-        }
 
         private bool IsCategoryEditing(string categoryId)
         {
@@ -246,6 +239,13 @@ namespace MareSynchronos.UI.Component
             return _categoryEditNameForCategoryId[categoryId];
         }
 
+        private void ToggleCategoryOpen(PairCategory category)
+        {
+
+            category.Open = !category.Open;
+            _configuration.Save();
+        }
+        
         private void RenameCategory(string categoryId, string newName)
         {
             Logger.Info($"Renaming category {categoryId} to {newName}");
