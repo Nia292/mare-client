@@ -1,14 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace MareSynchronos.Models.DTO
+namespace MareSynchronos.Models
 {
-    public class PairCategoryDto
+    public class PairCategory
     {
         /// <summary>
         /// UUIDv4 to unique track it across name changes
         /// </summary>
-        public string CategoryID { get; set; }
+        public string CategoryId { get; }
         /// <summary>
         /// The name of the category, to be rendered in the UI
         /// </summary>
@@ -17,13 +17,13 @@ namespace MareSynchronos.Models.DTO
         /// <summary>
         /// The pair partner UIDs that are to be rendered in this category.
         /// </summary>
-        public List<string> PairPartnerUIDs { get; set; }
+        public List<string> PairPartnerUids { get; }
 
-        public PairCategoryDto(string categoryName)
+        public PairCategory(string categoryName)
         {
             CategoryName = categoryName;
-            CategoryID = Guid.NewGuid().ToString();
-            PairPartnerUIDs = new();
+            CategoryId = Guid.NewGuid().ToString();
+            PairPartnerUids = new();
         }
     }
 }

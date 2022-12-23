@@ -1,7 +1,8 @@
-﻿using System;
-using Dalamud.Interface;
+﻿using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using ImGuiNET;
+using MareSynchronos.Models;
+using MareSynchronos.Utils;
 
 namespace MareSynchronos.UI.Component
 {
@@ -12,18 +13,13 @@ namespace MareSynchronos.UI.Component
         /// </summary>
         private string _categoryName = string.Empty;
 
-        private Action<string> _addCategoryHandler;
+        private readonly Configuration _configuration;
 
-        public AddCategoryUi()
+        public AddCategoryUi(Configuration configuration)
         {
-            _addCategoryHandler = _ => {};
+            _configuration = configuration;
         }
 
-        public AddCategoryUi OnAddCategory(Action<string> addCategoryHandler)
-        {
-            _addCategoryHandler = addCategoryHandler;
-            return this;
-        }
 
         public void Draw()
         {
@@ -33,11 +29,24 @@ namespace MareSynchronos.UI.Component
             ImGui.SameLine(ImGui.GetWindowContentRegionMin().X + UiShared.GetWindowContentRegionWidth() - buttonSize.X);
             if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus))
             {
-                _addCategoryHandler(_categoryName);
+                AddCategory(_categoryName);
+                _categoryName = string.Empty;
             }
             UiShared.AttachToolTip($"Create new category {_categoryName}");
 
             ImGuiHelpers.ScaledDummy(2);
+        }
+        
+        /// <summary>
+        /// Called when a new sync pair category is supposed to be created 
+        /// </summary>
+        /// <param name="newCategoryName">name of the new category.</param>
+        private void AddCategory(string newCategoryName)
+        {
+            Logger.Debug($"Adding category with name {newCategoryName}");
+            var categoryToAdd = new PairCategory(newCategoryName);
+            _configuration.PairCategories.Add(categoryToAdd);
+            _configuration.Save();
         }
     }
 }

@@ -5,7 +5,6 @@ using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
-using System.Runtime.Serialization.Formatters;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
@@ -13,7 +12,6 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Utility;
 using ImGuiNET;
 using MareSynchronos.API;
-using MareSynchronos.Models.DTO;
 using MareSynchronos.UI.Component;
 using MareSynchronos.Utils;
 using MareSynchronos.WebAPI;
@@ -47,7 +45,7 @@ public class CompactUi : Window, IDisposable
     private string _lastAddedUserComment = string.Empty;
 
     private readonly AddCategoryUi _componentAddCategory;
-    private readonly List<PairCategoryUi> _componentsPairCategory;
+    private readonly PairCategoriesUi _pairCategoriesUi;
 
     public CompactUi(WindowSystem windowSystem,
         UiShared uiShared, Configuration configuration, ApiController apiController) : base("###MareSynchronosMainUI")
@@ -85,11 +83,8 @@ public class CompactUi : Window, IDisposable
             MaximumSize = new Vector2(350, 2000),
         };
 
-        _componentAddCategory = new AddCategoryUi()
-            .OnAddCategory(HandleAddCategory);
-        _componentsPairCategory = _configuration.PairCategories
-            .Select(BuildCategoryFor)
-            .ToList();
+        _componentAddCategory = new AddCategoryUi(_configuration);
+        _pairCategoriesUi = new PairCategoriesUi(_configuration, _apiController, DrawPairedClient);
         windowSystem.AddWindow(this);
     }
 
@@ -440,7 +435,7 @@ public class CompactUi : Window, IDisposable
     {
         UiShared.DrawWithID("addpair", DrawAddPair);
         UiShared.DrawWithID("addcategory", DrawAddCategory);
-        UiShared.DrawWithID("pairGroups", DrawCategories);
+        UiShared.DrawWithID("paircategories", _pairCategoriesUi.Draw);
         UiShared.DrawWithID("pairs", DrawPairs);
         TransferPartHeight = ImGui.GetCursorPosY();
         UiShared.DrawWithID("filter", DrawFilter);
@@ -449,11 +444,6 @@ public class CompactUi : Window, IDisposable
     private void DrawAddCategory()
     {
         _componentAddCategory.Draw();
-    }
-
-    private void DrawCategories()
-    {
-        _componentsPairCategory.ForEach(component => component.Draw());
     }
 
     private void DrawPairs()
@@ -647,56 +637,6 @@ public class CompactUi : Window, IDisposable
         }
     }
     
-    /// <summary>
-    /// Called when a new sync pair category is supposed to be created 
-    /// </summary>
-    /// <param name="newCategoryName">name of the new category.</param>
-    private void HandleAddCategory(string newCategoryName)
-    {
-        Logger.Info("Adding category with name " + newCategoryName);
-        var categoryToAdd = new PairCategoryDto(newCategoryName);
-        _configuration.PairCategories.Add(categoryToAdd);
-        _configuration.Save();
-        _componentsPairCategory.Add(BuildCategoryFor(categoryToAdd));
-    }
-
-    private void HandleDeleteCategory(string categoryUid)
-    {
-        Logger.Info("Removing category " + categoryUid);
-        _configuration.PairCategories.RemoveAll(category => string.Equals(category.CategoryID, categoryUid, StringComparison.Ordinal));
-        _configuration.Save();
-        _componentsPairCategory.RemoveAll(categoryComponent => string.Equals(categoryComponent.CategoryId, categoryUid, StringComparison.Ordinal));
-    }
-    
-    private void HandleRenameCategory(string categoryUid, string newCategoryName)
-    {
-        Logger.Info($"Renaming category {categoryUid} to {newCategoryName}");
-        _configuration.PairCategories.ForEach(category =>
-        {
-            if (string.Equals(category.CategoryID, categoryUid, StringComparison.Ordinal))
-            {
-                category.CategoryName = newCategoryName;
-            }
-        });
-        _configuration.Save();
-    }
-
-
-    /// <summary>
-    /// Turns the category DTO into a drawable category component
-    /// </summary>
-    /// <param name="category">to turn into a component</param>
-    /// <returns>the drawable component</returns>
-    private PairCategoryUi BuildCategoryFor(PairCategoryDto category)
-    {
-        return new PairCategoryUi(category,
-            () => HandleDeleteCategory(category.CategoryID),
-            (newCategoryName) => HandleRenameCategory(category.CategoryID, newCategoryName),
-            new List<ClientPairDto>(),
-            DrawPairedClient
-        );
-    }
-
     private string GetServerError()
     {
         return _apiController.ServerState switch
