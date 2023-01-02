@@ -13,6 +13,8 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Utility;
 using ImGuiNET;
 using MareSynchronos.API;
+using MareSynchronos.UI.Components;
+using MareSynchronos.UI.Handlers;
 using MareSynchronos.Utils;
 using MareSynchronos.WebAPI;
 
@@ -22,6 +24,7 @@ public class CompactUi : Window, IDisposable
 {
     private readonly ApiController _apiController;
     private readonly Configuration _configuration;
+    private readonly TagHandler _tagHandler;
     public readonly Dictionary<string, bool> ShowUidForEntry = new(StringComparer.Ordinal);
     private readonly UiShared _uiShared;
     private readonly WindowSystem _windowSystem;
@@ -44,6 +47,9 @@ public class CompactUi : Window, IDisposable
     private ClientPairDto? _lastAddedUser;
     private string _lastAddedUserComment = string.Empty;
 
+    private readonly SelectGroupForPairUi _selectGroupForPairUi;
+    private readonly PairGroupsUi _pairGroupsUi;
+    
     public CompactUi(WindowSystem windowSystem,
         UiShared uiShared, Configuration configuration, ApiController apiController) : base("###MareSynchronosMainUI")
     {
@@ -71,8 +77,11 @@ public class CompactUi : Window, IDisposable
         _uiShared = uiShared;
         _configuration = configuration;
         _apiController = apiController;
+        _tagHandler = new TagHandler(_configuration);
 
         groupPanel = new(this, uiShared, configuration, apiController);
+        _selectGroupForPairUi = new(_tagHandler);
+        _pairGroupsUi = new(_tagHandler, DrawPairedClient);
 
         SizeConstraints = new WindowSizeConstraints()
         {
@@ -148,6 +157,7 @@ public class CompactUi : Window, IDisposable
             }
             ImGui.Separator();
             UiShared.DrawWithID("transfers", DrawTransfers);
+            UiShared.DrawWithID("grouping-popup", () => _selectGroupForPairUi.Draw());
             TransferPartHeight = ImGui.GetCursorPosY() - TransferPartHeight;
         }
 
@@ -302,6 +312,7 @@ public class CompactUi : Window, IDisposable
 
         var buttonSize = UiShared.GetIconButtonSize(pauseIcon);
         var trashButtonSize = UiShared.GetIconButtonSize(FontAwesomeIcon.Trash);
+        var groupingButtonSize = UiShared.GetIconButtonSize(FontAwesomeIcon.Folder);
         var entryUID = string.IsNullOrEmpty(entry.VanityUID) ? entry.OtherUID : entry.VanityUID;
         var textSize = ImGui.CalcTextSize(entryUID);
         var originalY = ImGui.GetCursorPosY();
@@ -401,20 +412,11 @@ public class CompactUi : Window, IDisposable
             UiShared.AttachToolTip("Hit ENTER to save\nRight click to cancel");
         }
 
-        ImGui.SameLine(ImGui.GetWindowContentRegionMin().X + UiShared.GetWindowContentRegionWidth() - buttonSize.X);
-        ImGui.SetCursorPosY(originalY);
-        if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash))
-        {
-            if (UiShared.CtrlPressed())
-            {
-                _ = _apiController.UserRemovePair(entry.OtherUID);
-            }
-        }
-        UiShared.AttachToolTip("Hold CTRL and click to unpair permanently from " + entryUID);
-
+        // FIXME the buttons here are wrong, at least the sizes
+        // Pause Button
         if (entry.IsSynced)
         {
-            ImGui.SameLine(ImGui.GetWindowContentRegionMin().X + UiShared.GetWindowContentRegionWidth() - buttonSize.X - ImGui.GetStyle().ItemSpacing.X - trashButtonSize.X);
+            ImGui.SameLine(ImGui.GetWindowContentRegionMin().X + UiShared.GetWindowContentRegionWidth() - buttonSize.X - ImGui.GetStyle().ItemSpacing.X - trashButtonSize.X - groupingButtonSize.X);
             ImGui.SetCursorPosY(originalY);
             if (ImGuiComponents.IconButton(pauseIcon))
             {
@@ -424,6 +426,27 @@ public class CompactUi : Window, IDisposable
                 ? "Pause pairing with " + entryUID
                 : "Resume pairing with " + entryUID);
         }
+        
+        // Delete button
+        ImGui.SameLine(ImGui.GetWindowContentRegionMin().X + UiShared.GetWindowContentRegionWidth() - buttonSize.X - ImGui.GetStyle().ItemSpacing.X - trashButtonSize.X);
+        ImGui.SetCursorPosY(originalY);
+        if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash))
+        {
+            if (UiShared.CtrlPressed())
+            {
+                _ = _apiController.UserRemovePair(entry.OtherUID);
+            }
+        }
+        UiShared.AttachToolTip("Hold CTRL and click to unpair permanently from " + entryUID);
+        
+        // Grouping Button
+        ImGui.SameLine(ImGui.GetWindowContentRegionMin().X + UiShared.GetWindowContentRegionWidth() - groupingButtonSize.X);
+        ImGui.SetCursorPosY(originalY);
+        if (ImGuiComponents.IconButton(FontAwesomeIcon.Folder))
+        {
+            _selectGroupForPairUi.Open(entry);
+        }
+        
     }
 
     private void DrawPairList()
@@ -445,7 +468,10 @@ public class CompactUi : Window, IDisposable
         if (_configuration.ReverseUserSort) users = users.Reverse();
 
         ImGui.BeginChild("list", new Vector2(_windowContentWidth, ySize), false);
-        foreach (var entry in users.ToList())
+        var allAvailablePairs = users.ToList();
+        var pairsWithoutTags = allAvailablePairs.Where(pair => !_tagHandler.HasAnyTag(pair));
+        _pairGroupsUi.Draw(allAvailablePairs);
+        foreach (var entry in pairsWithoutTags)
         {
             UiShared.DrawWithID(entry.OtherUID, () => DrawPairedClient(entry));
         }
