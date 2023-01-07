@@ -81,7 +81,7 @@ public class CompactUi : Window, IDisposable
 
         groupPanel = new(this, uiShared, configuration, apiController);
         _selectGroupForPairUi = new(_tagHandler, configuration);
-        _pairGroupsUi = new(_tagHandler, DrawPairedClient);
+        _pairGroupsUi = new(_tagHandler, DrawPairedClient, apiController);
 
         SizeConstraints = new WindowSizeConstraints()
         {
