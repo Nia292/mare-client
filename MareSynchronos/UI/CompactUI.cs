@@ -80,7 +80,7 @@ public class CompactUi : Window, IDisposable
         _tagHandler = new TagHandler(_configuration);
 
         groupPanel = new(this, uiShared, configuration, apiController);
-        _selectGroupForPairUi = new(_tagHandler);
+        _selectGroupForPairUi = new(_tagHandler, configuration);
         _pairGroupsUi = new(_tagHandler, DrawPairedClient);
 
         SizeConstraints = new WindowSizeConstraints()
@@ -157,7 +157,7 @@ public class CompactUi : Window, IDisposable
             }
             ImGui.Separator();
             UiShared.DrawWithID("transfers", DrawTransfers);
-            UiShared.DrawWithID("grouping-popup", () => _selectGroupForPairUi.Draw());
+            UiShared.DrawWithID("grouping-popup", () => _selectGroupForPairUi.Draw(ShowUidForEntry));
             TransferPartHeight = ImGui.GetCursorPosY() - TransferPartHeight;
         }
 
@@ -309,16 +309,17 @@ public class CompactUi : Window, IDisposable
     private void DrawPairedClient(ClientPairDto entry)
     {
         var pauseIcon = entry.IsPaused ? FontAwesomeIcon.Play : FontAwesomeIcon.Pause;
-
-        var buttonSize = UiShared.GetIconButtonSize(pauseIcon);
+        var pauseIconSize = UiShared.GetIconButtonSize(pauseIcon);
         var trashButtonSize = UiShared.GetIconButtonSize(FontAwesomeIcon.Trash);
         var groupingButtonSize = UiShared.GetIconButtonSize(FontAwesomeIcon.Folder);
         var entryUID = string.IsNullOrEmpty(entry.VanityUID) ? entry.OtherUID : entry.VanityUID;
         var textSize = ImGui.CalcTextSize(entryUID);
         var originalY = ImGui.GetCursorPosY();
-        var buttonSizes = buttonSize.Y + trashButtonSize.Y;
+        var buttonSizes = pauseIconSize.Y + trashButtonSize.Y + groupingButtonSize.Y;
+        var spacingX = ImGui.GetStyle().ItemSpacing.X;
+        var windowEndX = ImGui.GetWindowContentRegionMin().X + UiShared.GetWindowContentRegionWidth();
 
-        var textPos = originalY + buttonSize.Y / 2 - textSize.Y / 2;
+        var textPos = originalY + pauseIconSize.Y / 2 - textSize.Y / 2;
         ImGui.SetCursorPosY(textPos);
         if (!entry.IsSynced)
         {
@@ -397,7 +398,7 @@ public class CompactUi : Window, IDisposable
         {
             ImGui.SetCursorPosY(originalY);
 
-            ImGui.SetNextItemWidth(UiShared.GetWindowContentRegionWidth() - ImGui.GetCursorPosX() - buttonSizes - ImGui.GetStyle().ItemSpacing.X * 2);
+            ImGui.SetNextItemWidth(UiShared.GetWindowContentRegionWidth() - ImGui.GetCursorPosX() - buttonSizes - ImGui.GetStyle().ItemSpacing.X * 3);
             if (ImGui.InputTextWithHint("", "Nick/Notes", ref EditUserComment, 255, ImGuiInputTextFlags.EnterReturnsTrue))
             {
                 _configuration.SetCurrentServerUidComment(entry.OtherUID, EditUserComment);
@@ -412,11 +413,10 @@ public class CompactUi : Window, IDisposable
             UiShared.AttachToolTip("Hit ENTER to save\nRight click to cancel");
         }
 
-        // FIXME the buttons here are wrong, at least the sizes
         // Pause Button
         if (entry.IsSynced)
         {
-            ImGui.SameLine(ImGui.GetWindowContentRegionMin().X + UiShared.GetWindowContentRegionWidth() - buttonSize.X - ImGui.GetStyle().ItemSpacing.X - trashButtonSize.X - groupingButtonSize.X);
+            ImGui.SameLine(windowEndX - trashButtonSize.X - spacingX - groupingButtonSize.X - spacingX - pauseIconSize.X);
             ImGui.SetCursorPosY(originalY);
             if (ImGuiComponents.IconButton(pauseIcon))
             {
@@ -427,8 +427,16 @@ public class CompactUi : Window, IDisposable
                 : "Resume pairing with " + entryUID);
         }
         
+        // Grouping Button
+        ImGui.SameLine(windowEndX - trashButtonSize.X - spacingX - groupingButtonSize.X);
+        ImGui.SetCursorPosY(originalY);
+        if (ImGuiComponents.IconButton(FontAwesomeIcon.Folder))
+        {
+            _selectGroupForPairUi.Open(entry);
+        }
+        
         // Delete button
-        ImGui.SameLine(ImGui.GetWindowContentRegionMin().X + UiShared.GetWindowContentRegionWidth() - buttonSize.X - ImGui.GetStyle().ItemSpacing.X - trashButtonSize.X);
+        ImGui.SameLine(windowEndX - trashButtonSize.X);
         ImGui.SetCursorPosY(originalY);
         if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash))
         {
@@ -438,14 +446,6 @@ public class CompactUi : Window, IDisposable
             }
         }
         UiShared.AttachToolTip("Hold CTRL and click to unpair permanently from " + entryUID);
-        
-        // Grouping Button
-        ImGui.SameLine(ImGui.GetWindowContentRegionMin().X + UiShared.GetWindowContentRegionWidth() - groupingButtonSize.X);
-        ImGui.SetCursorPosY(originalY);
-        if (ImGuiComponents.IconButton(FontAwesomeIcon.Folder))
-        {
-            _selectGroupForPairUi.Open(entry);
-        }
         
     }
 
