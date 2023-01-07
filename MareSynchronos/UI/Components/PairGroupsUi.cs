@@ -25,7 +25,11 @@ namespace MareSynchronos.UI.Components
 
         public void Draw(List<ClientPairDto> availablePairs)
         {
-            foreach (var tag in _tagHandler.GetAllTagsSorted())
+            // Only render those tags that actually have pairs in them, otherwise
+            // we can end up with a bunch of useless pair groups
+            var tagsWithPairsInThem = _tagHandler.GetAllTagsSorted()
+                .Where(tag => _tagHandler.GetOtherUidsForTag(tag).Count >= 1);
+            foreach (var tag in tagsWithPairsInThem)
             {
                 UiShared.DrawWithID($"group-{tag}", () => DrawCategory(tag, availablePairs));
             }
