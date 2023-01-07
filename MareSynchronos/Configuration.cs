@@ -81,6 +81,7 @@ public class Configuration : IPluginConfiguration
     public bool InitialScanComplete { get; set; } = false;
 
     public bool FullPause { get; set; } = false;
+    public bool HideInfoMessages { get; set; } = false;
     public Dictionary<string, Dictionary<string, string>> UidServerComments { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, Dictionary<string, string>> GidServerComments { get; set; } = new(StringComparer.Ordinal);
 
@@ -101,7 +102,7 @@ public class Configuration : IPluginConfiguration
     public int Version { get; set; } = 5;
 
     public bool ShowTransferWindow { get; set; } = true;
-    public bool OpenPopupOnAdd { get; set; } = false;
+    public bool OpenPopupOnAdd { get; set; } = true;
 
     // the below exist just to make saving less cumbersome
     public void Initialize(DalamudPluginInterface pluginInterface)

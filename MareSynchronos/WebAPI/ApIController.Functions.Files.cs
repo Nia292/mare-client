@@ -18,7 +18,7 @@ namespace MareSynchronos.WebAPI;
 
 public partial class ApiController
 {
-    private readonly HashSet<string> _verifiedUploadedHashes;
+    private readonly Dictionary<string, DateTime> _verifiedUploadedHashes;
 
     private int _downloadId = 0;
     public async void CancelUpload()
@@ -39,30 +39,33 @@ public partial class ApiController
 
     public async Task FilesDeleteAll()
     {
+        _verifiedUploadedHashes.Clear();
         await _mareHub!.SendAsync(nameof(FilesDeleteAll)).ConfigureAwait(false);
     }
 
     private async Task<string> DownloadFileHttpClient(Uri url, IProgress<long> progress, CancellationToken ct)
     {
         using var client = new HttpClient();
-        client.DefaultRequestHeaders.Add("Authorization", SecretKey);
+        client.DefaultRequestHeaders.Add(AuthorizationJwtHeader.Key, AuthorizationJwtHeader.Value);
         int attempts = 0;
         bool failed = true;
         const int maxAttempts = 10;
 
         HttpResponseMessage response = null!;
         HttpStatusCode? lastError = HttpStatusCode.OK;
+        var bypassUrl = new Uri(url, "?nocache=" + DateTime.UtcNow.Ticks);
+
         while (failed && attempts < maxAttempts && !ct.IsCancellationRequested)
         {
             try
             {
-                response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+                response = await client.GetAsync(bypassUrl, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
                 failed = false;
             }
             catch (HttpRequestException ex)
             {
-                Logger.Warn($"Attempt {attempts}: Error during download of {url}, HttpStatusCode: {ex.StatusCode}");
+                Logger.Warn($"Attempt {attempts}: Error during download of {bypassUrl}, HttpStatusCode: {ex.StatusCode}");
                 lastError = ex.StatusCode;
                 if (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Unauthorized)
                 {
@@ -97,13 +100,13 @@ public partial class ApiController
                     progress.Report(bytesRead);
                 }
 
-                Logger.Debug($"{url} downloaded to {fileName}");
+                Logger.Debug($"{bypassUrl} downloaded to {fileName}");
                 return fileName;
             }
         }
         catch (Exception ex)
         {
-            Logger.Warn($"Error during file download of {url}", ex);
+            Logger.Warn($"Error during file download of {bypassUrl}", ex);
             try
             {
                 File.Delete(fileName);
@@ -221,8 +224,14 @@ public partial class ApiController
         List<string> unverifiedUploadHashes = new();
         foreach (var item in character.FileReplacements.SelectMany(c => c.Value.Where(f => string.IsNullOrEmpty(f.FileSwapPath)).Select(v => v.Hash).Distinct(StringComparer.Ordinal)).Distinct(StringComparer.Ordinal).ToList())
         {
-            if (!_verifiedUploadedHashes.Contains(item))
+            if (!_verifiedUploadedHashes.TryGetValue(item, out var verifiedTime))
             {
+                verifiedTime = DateTime.MinValue;
+            }
+
+            if (verifiedTime < DateTime.UtcNow.Subtract(TimeSpan.FromMinutes(10)))
+            {
+                Logger.Verbose("Verifying " + item + ", last verified: " + verifiedTime);
                 unverifiedUploadHashes.Add(item);
             }
         }
@@ -292,7 +301,7 @@ public partial class ApiController
 
             foreach (var item in unverifiedUploadHashes)
             {
-                _verifiedUploadedHashes.Add(item);
+                _verifiedUploadedHashes[item] = DateTime.UtcNow;
             }
 
             CurrentUploads.Clear();
@@ -356,7 +365,7 @@ public partial class ApiController
 
     public async Task FilesUploadStreamAsync(string hash, IAsyncEnumerable<byte[]> fileContent)
     {
-        await _mareHub!.SendAsync(nameof(FilesUploadStreamAsync), hash, fileContent).ConfigureAwait(false);
+        await _mareHub!.InvokeAsync(nameof(FilesUploadStreamAsync), hash, fileContent).ConfigureAwait(false);
     }
 
     public async Task<bool> FilesIsUploadFinished()

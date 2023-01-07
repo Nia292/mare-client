@@ -410,7 +410,7 @@ public class UiShared : IDisposable
             {
                 _pluginConfiguration.FullPause = false;
                 _pluginConfiguration.Save();
-                Task.Run(_apiController.CreateConnections);
+                Task.Run(() => _apiController.CreateConnections(true));
             }
         }
 
@@ -447,7 +447,7 @@ public class UiShared : IDisposable
                     _pluginConfiguration.ClientSecret[_pluginConfiguration.ApiUri] = _secretKey;
                     _pluginConfiguration.Save();
                     _secretKey = string.Empty;
-                    Task.Run(_apiController.CreateConnections);
+                    Task.Run(() => _apiController.CreateConnections(true));
                     _enterSecretKey = false;
                     callBackOnExit?.Invoke();
                 }
