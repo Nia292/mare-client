@@ -311,13 +311,14 @@ public class CompactUi : Window, IDisposable
         var pauseIcon = entry.IsPaused ? FontAwesomeIcon.Play : FontAwesomeIcon.Pause;
         var pauseIconSize = UiShared.GetIconButtonSize(pauseIcon);
         var trashButtonSize = UiShared.GetIconButtonSize(FontAwesomeIcon.Trash);
-        var groupingButtonSize = UiShared.GetIconButtonSize(FontAwesomeIcon.Folder);
+        var barButtonSize = UiShared.GetIconButtonSize(FontAwesomeIcon.Bars);
         var entryUID = string.IsNullOrEmpty(entry.VanityUID) ? entry.OtherUID : entry.VanityUID;
         var textSize = ImGui.CalcTextSize(entryUID);
         var originalY = ImGui.GetCursorPosY();
-        var buttonSizes = pauseIconSize.Y + trashButtonSize.Y + groupingButtonSize.Y;
+        var buttonSizes = pauseIconSize.Y + trashButtonSize.Y + barButtonSize.Y;
         var spacingX = ImGui.GetStyle().ItemSpacing.X;
         var windowEndX = ImGui.GetWindowContentRegionMin().X + UiShared.GetWindowContentRegionWidth();
+   
 
         var textPos = originalY + pauseIconSize.Y / 2 - textSize.Y / 2;
         ImGui.SetCursorPosY(textPos);
@@ -416,7 +417,7 @@ public class CompactUi : Window, IDisposable
         // Pause Button
         if (entry.IsSynced)
         {
-            ImGui.SameLine(windowEndX - trashButtonSize.X - spacingX - groupingButtonSize.X - spacingX - pauseIconSize.X);
+            ImGui.SameLine(windowEndX - barButtonSize.X - spacingX - pauseIconSize.X);
             ImGui.SetCursorPosY(originalY);
             if (ImGuiComponents.IconButton(pauseIcon))
             {
@@ -426,19 +427,31 @@ public class CompactUi : Window, IDisposable
                 ? "Pause pairing with " + entryUID
                 : "Resume pairing with " + entryUID);
         }
-        
-        // Grouping Button
-        ImGui.SameLine(windowEndX - trashButtonSize.X - spacingX - groupingButtonSize.X);
+
+        // Flyout Menu
+        ImGui.SameLine(windowEndX - barButtonSize.X);
         ImGui.SetCursorPosY(originalY);
-        if (ImGuiComponents.IconButton(FontAwesomeIcon.Folder))
+    
+        if (ImGuiComponents.IconButton(FontAwesomeIcon.Bars))
+        {
+            ImGui.OpenPopup("User Flyout Menu");
+        }
+        if (ImGui.BeginPopup("User Flyout Menu"))
+        {
+            UiShared.DrawWithID($"Buttons {entry.OtherUID}", () => DrawPairedClientMenu(entry));
+            ImGui.EndPopup();
+        }
+    }
+
+    private void DrawPairedClientMenu(ClientPairDto entry)
+    {
+        var entryUID = string.IsNullOrEmpty(entry.VanityUID) ? entry.OtherUID : entry.VanityUID;
+        if (UiShared.IconTextButton(FontAwesomeIcon.Folder, "Pair Groups"))
         {
             _selectGroupForPairUi.Open(entry);
         }
         
-        // Delete button
-        ImGui.SameLine(windowEndX - trashButtonSize.X);
-        ImGui.SetCursorPosY(originalY);
-        if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash))
+        if (UiShared.IconTextButton(FontAwesomeIcon.Trash, "Unpair Permanently"))
         {
             if (UiShared.CtrlPressed())
             {
@@ -446,7 +459,6 @@ public class CompactUi : Window, IDisposable
             }
         }
         UiShared.AttachToolTip("Hold CTRL and click to unpair permanently from " + entryUID);
-        
     }
 
     private void DrawPairList()

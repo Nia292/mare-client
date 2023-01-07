@@ -54,9 +54,12 @@ namespace MareSynchronos.UI.Components
             {
                 return;
             }
+            
+            var name = PairName(showUidForEntry, _pair.OtherUID);
+            var popupName = $"Chose Groups for {name}";
             if (_open && !_opened)
             {
-                ImGui.OpenPopup("Grouping Popup");
+                ImGui.OpenPopup(popupName);
                 _opened = true;
             }
 
@@ -64,26 +67,16 @@ namespace MareSynchronos.UI.Components
             {
                 _opened = false;
             }
-
-            if (ImGui.BeginPopup("Grouping Popup"))
+            
+            if (ImGui.BeginPopupModal(popupName, ref _open, UiShared.PopupWindowFlags))
             {
-                
-                showUidForEntry.TryGetValue(_pair.OtherUID, out var showUidInsteadOfName);
-                _configuration.GetCurrentServerUidComments().TryGetValue(_pair.OtherUID, out var playerText);
-                if (showUidInsteadOfName)
-                {
-                    playerText = _pair.OtherUID;
-                }
-                else if (string.IsNullOrEmpty(playerText))
-                {
-                    playerText = _pair.OtherUID;
-                }
-                UiShared.FontTextUnformatted("Groups for " + playerText, UiBuilder.DefaultFont);
+                UiShared.FontTextUnformatted($"Select the groups you want {name} to be in.", UiBuilder.DefaultFont);
                 foreach (var tag in _tagHandler.GetAllTagsSorted())
                 {
                     UiShared.DrawWithID($"groups-pair-{_pair.OtherUID}-{tag}", () => DrawGroupName(_pair, tag));
                 }
                 
+                UiShared.FontTextUnformatted($"Create a new group for {name}.", UiBuilder.DefaultFont);
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus))
                 {
                     HandleAddTag();
@@ -96,7 +89,7 @@ namespace MareSynchronos.UI.Components
                         HandleAddTag();
                     }
                 }
-
+                UiShared.SetScaledWindowSize(375);
                 ImGui.EndPopup();
             }
             else
@@ -128,8 +121,27 @@ namespace MareSynchronos.UI.Components
             if (!_tagNameToAdd.IsNullOrWhitespace())
             {
                 _tagHandler.AddTag(_tagNameToAdd);
+                if (_pair != null)
+                {
+                    _tagHandler.AddTagToPairedUid(_pair, _tagNameToAdd); 
+                }
                 _tagNameToAdd = string.Empty;
             }
+        }
+
+        private string PairName(Dictionary<string, bool> showUidForEntry, string otherUid)
+        {
+            showUidForEntry.TryGetValue(otherUid, out var showUidInsteadOfName);
+            _configuration.GetCurrentServerUidComments().TryGetValue(otherUid, out var playerText);
+            if (showUidInsteadOfName)
+            {
+                playerText = otherUid;
+            }
+            else if (string.IsNullOrEmpty(playerText))
+            {
+                playerText = otherUid;
+            }
+            return playerText;
         }
 
     }
