@@ -438,7 +438,7 @@ public class CompactUi : Window, IDisposable
         }
         if (ImGui.BeginPopup("User Flyout Menu"))
         {
-            UiShared.DrawWithID($"Buttons {entry.OtherUID}", () => DrawPairedClientMenu(entry));
+            UiShared.DrawWithID($"buttons-{entry.OtherUID}", () => DrawPairedClientMenu(entry));
             ImGui.EndPopup();
         }
     }

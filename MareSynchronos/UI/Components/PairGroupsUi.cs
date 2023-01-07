@@ -45,7 +45,7 @@ namespace MareSynchronos.UI.Components
             UiShared.DrawWithID($"group-{tag}-buttons", () => DrawButtons(tag, availablePairsInThisTag));
             if (_tagHandler.IsTagOpen(tag))
             {
-                DrawPairs(availablePairsInThisTag);
+                DrawPairs(tag, availablePairsInThisTag);
             }
         }
 
@@ -102,18 +102,20 @@ namespace MareSynchronos.UI.Components
             UiShared.AttachToolTip($"Delete Group {tag} (Will not delete the pairs)");
         }
 
-        private void DrawPairs(List<ClientPairDto> availablePairsInThisCategory)
+        private void DrawPairs(string tag, List<ClientPairDto> availablePairsInThisCategory)
         {
             // These are all the OtherUIDs that are tagged with this tag
             availablePairsInThisCategory
-                .ForEach(clientPair =>
-                {
-                    // This is probably just dumb. Somehow, just setting the cursor position to the icon lenght
-                    // does not really push the child rendering further. So we'll just add two whitespaces and call it a day?
-                    UiShared.FontTextUnformatted("    ", UiBuilder.DefaultFont);
-                    ImGui.SameLine();
-                    _clientRenderFn(clientPair);
-                });
+                .ForEach(pair => UiShared.DrawWithID($"tag-{tag}-pair-${pair.OtherUID}", () => DrawPair(pair)));
+        }
+
+        private void DrawPair(ClientPairDto pair)
+        {
+            // This is probably just dumb. Somehow, just setting the cursor position to the icon lenght
+            // does not really push the child rendering further. So we'll just add two whitespaces and call it a day?
+            UiShared.FontTextUnformatted("    ", UiBuilder.DefaultFont);
+            ImGui.SameLine();
+            _clientRenderFn(pair);
         }
 
         private void ToggleTagOpen(string tag)
