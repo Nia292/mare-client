@@ -6,6 +6,7 @@ using Dalamud.Interface.Components;
 using ImGuiNET;
 using MareSynchronos.API;
 using MareSynchronos.UI.Handlers;
+using MareSynchronos.Utils;
 using MareSynchronos.WebAPI;
 
 namespace MareSynchronos.UI.Components
@@ -104,9 +105,12 @@ namespace MareSynchronos.UI.Components
 
         private void DrawPairs(string tag, List<ClientPairDto> availablePairsInThisCategory)
         {
+            Logger.Debug($"Available pairs in {tag}: ${availablePairsInThisCategory.ToString()}");
+            ImGui.Separator();
             // These are all the OtherUIDs that are tagged with this tag
             availablePairsInThisCategory
                 .ForEach(pair => UiShared.DrawWithID($"tag-{tag}-pair-${pair.OtherUID}", () => DrawPair(pair)));
+            ImGui.Separator();
         }
 
         private void DrawPair(ClientPairDto pair)
