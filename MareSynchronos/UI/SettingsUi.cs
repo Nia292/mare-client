@@ -12,6 +12,7 @@ using MareSynchronos.API;
 using MareSynchronos.Utils;
 using MareSynchronos.WebAPI.Utils;
 using Dalamud.Utility;
+using Newtonsoft.Json;
 
 namespace MareSynchronos.UI;
 
@@ -22,12 +23,15 @@ public class SettingsUi : Window, IDisposable
     private readonly WindowSystem _windowSystem;
     private readonly ApiController _apiController;
     private readonly UiShared _uiShared;
+    public CharacterCacheDto LastCreatedCharacterData { private get; set; }
+
     public event SwitchUi? SwitchToIntroUi;
     private bool _overwriteExistingLabels = false;
     private bool? _notesSuccessfullyApplied = null;
     private string _lastTab = string.Empty;
     private bool _openPopupOnAddition;
     private bool _hideInfoMessages;
+    private bool _disableOptionalPluginsWarnings;
 
     public SettingsUi(WindowSystem windowSystem,
         UiShared uiShared, Configuration configuration, ApiController apiController) : base("Mare Synchronos Settings")
@@ -46,6 +50,7 @@ public class SettingsUi : Window, IDisposable
         _uiShared = uiShared;
         _openPopupOnAddition = _configuration.OpenPopupOnAdd;
         _hideInfoMessages = _configuration.HideInfoMessages;
+        _disableOptionalPluginsWarnings = _configuration.DisableOptionalPluginWarnings;
         windowSystem.AddWindow(this);
     }
 
@@ -171,6 +176,12 @@ public class SettingsUi : Window, IDisposable
             _configuration.Save();
         }
         UiShared.DrawHelpText("Enabling this will not print any \"Info\" labeled messages into the game chat.");
+        if (ImGui.Checkbox("Disable optional plugin warnings", ref _disableOptionalPluginsWarnings))
+        {
+            _configuration.DisableOptionalPluginWarnings = _disableOptionalPluginsWarnings;
+            _configuration.Save();
+        }
+        UiShared.DrawHelpText("Enabling this will not print any \"Warning\" labeled messages for missing optional plugins Heels or Customize+ in the game chat.");
     }
 
     private void DrawAdministration()
@@ -534,6 +545,19 @@ public class SettingsUi : Window, IDisposable
         {
             _uiShared.DrawServiceSelection(() => { });
         }
+
+        if (UiShared.IconTextButton(FontAwesomeIcon.Copy, "[DEBUG] Copy Last created Character Data to clipboard"))
+        {
+            if (LastCreatedCharacterData != null)
+            {
+                ImGui.SetClipboardText(JsonConvert.SerializeObject(LastCreatedCharacterData, Formatting.Indented));
+            }
+            else
+            {
+                ImGui.SetClipboardText("ERROR: No created character data, cannot copy.");
+            }
+        }
+        UiShared.AttachToolTip("Use this when reporting mods being rejected from the server.");
     }
 
     private void DrawBlockedTransfers()
@@ -661,16 +685,22 @@ public class SettingsUi : Window, IDisposable
         ImGui.SameLine();
         if (ImGui.Button("Clear local cache"))
         {
-            Task.Run(() =>
+            if (UiShared.CtrlPressed())
             {
-                foreach (var file in Directory.GetFiles(_configuration.CacheFolder))
+                Task.Run(() =>
                 {
-                    File.Delete(file);
-                }
+                    foreach (var file in Directory.GetFiles(_configuration.CacheFolder))
+                    {
+                        File.Delete(file);
+                    }
 
-                _uiShared.RecalculateFileCacheSize();
-            });
+                    _uiShared.RecalculateFileCacheSize();
+                });
+            }
         }
+        UiShared.AttachToolTip("You normally do not need to do this. This will solely remove all downloaded data from all players and will require you to re-download everything again." + Environment.NewLine
+            + "Mares Cache is self-clearing and will not surpass the limit you have set it to." + Environment.NewLine
+            + "If you still think you need to do this hold CTRL while pressing the button.");
     }
 
     public override void OnClose()
